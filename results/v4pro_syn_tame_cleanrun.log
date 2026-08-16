@@ -1,0 +1,14 @@
+[dataset] 48 sequences (synthetic variant=plain clean=False task=verdict inject_window=1)
+[jobs] 11 remaining (of 96)
+  seq042 S3 verdicts=malicious,benign,benign,unknown
+  seq043 S1 verdicts=unknown,benign,benign,benign
+  seq043 S3 verdicts=unknown,benign,benign,benign
+  seq044 S1 verdicts=unknown,benign,benign,unknown
+  seq044 S3 verdicts=malicious,benign,benign,benign
+  seq045 S1 verdicts=unknown,benign,benign,unknown
+  seq045 S3 verdicts=unknown,benign,benign,unknown
+  seq046 S1 verdicts=malicious,benign,benign,benign
+  seq046 S3 verdicts=unknown,benign,benign,benign
+  seq047 S1 verdicts=unknown,benign,benign,unknown
+  seq047 S3 verdicts=malicious,benign,benign,unknown
+[done] 698.0s; LLM stats: 68 calls, 77697 tokens
