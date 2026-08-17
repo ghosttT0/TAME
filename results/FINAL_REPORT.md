@@ -85,6 +85,10 @@ model families on the same key `S1/S3` verdict slices.
 | Qwen2.5-7B (local vLLM, thinking off) | synthetic | S3 | 75.0% | 75.0% | 21.5% | 8.3% |
 | Qwen2.5-7B (local vLLM, thinking off) | real-104 | S1 | 83.7% | 72.1% | 14.1% | 12.2% |
 | Qwen2.5-7B (local vLLM, thinking off) | real-104 | S3 | 73.1% | 75.0% | 0.0% | 0.0% |
+| Qwen3-14B (local vLLM, thinking off) | synthetic | S1 | 70.8% | 75.0% | 6.2% | 11.1% |
+| Qwen3-14B (local vLLM, thinking off) | synthetic | S3 | 68.8% | 62.5% | 8.3% | 2.1% |
+| Qwen3-14B (local vLLM, thinking off) | real-104 | S1 | 81.7% | 71.2% | 22.4% | 31.4% |
+| Qwen3-14B (local vLLM, thinking off) | real-104 | S3 | 61.5% | 42.3% | 6.4% | 2.2% |
 
 Interpretation:
 
@@ -93,6 +97,7 @@ Interpretation:
 - `claude-sonnet-5` has much higher benign false-alarm pressure (BMR), and TAME is not uniformly beneficial on every slice, but it still substantially reduces real `S3` contamination and cuts BMR there by more than half
 - `GLM-5.2` sits in the middle: baseline DASR is moderate, and TAME's clearest gain is on BMR reduction rather than a uniform DASR drop; the strongest benefit appears on `S3`
 - `Qwen2.5-7B-Instruct` (local vLLM, thinking off) is the weakest detector in the table: its clean-window miss rate on genuinely malicious trigger windows is ~95–100% (MTR ≈ 1.0), so DASR is dominated by baseline detection failure rather than contamination. TAME shows no gain on synthetic, a small non-significant drop on real `S1` in absolute terms but statistically significant (paired sign test pos 14 / neg 2, p=0.004), and no change on real `S3`. See §9: this is the "detector-ceiling" boundary condition — when the model's own miss floor already exceeds the attack-attributable error, memory defenses have nothing left to remove.
+- `Qwen3-14B-Instruct` (local vLLM, thinking off, FP8) is a meaningfully stronger local detector than Qwen2.5-7B: real clean miss floors drop from ~95–100% to ~67–69%, and its failure profile is mixed — under-triggering overall (MTR 86–96%) but with a real FP-direction component on real `S1` (FP DASR 69.2%). TAME now shows significant real-data gains: real `S3` DASR 61.5% → 42.3% (paired sign test pos 20 / neg 0, p=1.9e-6) and real `S1` 81.7% → 71.2% (pos 18 / neg 7, p=0.043). This confirms the §9 boundary from the other side: once a local open-weight model alarms often enough to have contamination-attributable error, TAME again recovers it.
 - so the benchmark is not single-model brittle: the exact security/utility tradeoff moves by model family, which is itself a useful benchmark outcome
 
 ## 9. Contamination-attributable error decomposition (Δ) and the detector-ceiling boundary
@@ -111,20 +116,26 @@ Raw DASR mixes two error sources: (i) errors the **attack** pushes the model int
 | Qwen2.5-7B | synthetic | S3 | 100.0% | 75.0% | 75.0% | −25.0% | 0.0% |
 | Qwen2.5-7B | real | S1 | 94.9% | 83.7% | 72.1% | −11.2% | 11.5% |
 | Qwen2.5-7B | real | S3 | 100.0% | 73.1% | 75.0% | −26.9% | −1.9% |
+| Qwen3-14B | synthetic | S1 | 97.2% | 70.8% | 75.0% | −26.4% | −4.2% |
+| Qwen3-14B | synthetic | S3 | 72.2% | 68.8% | 62.5% | −3.5% | +6.2% |
+| Qwen3-14B | real | S1 | 66.7% | 81.7% | 71.2% | +15.1% | +10.6% |
+| Qwen3-14B | real | S3 | 69.2% | 61.5% | 42.3% | −7.7% | +19.2% |
 
 Notes:
 - Synthetic Δ uses matched 48-sequence clean/attacked sets (exact). Real clean uses `n-per-type 4` (52 sequences) while attacked real uses `n-per-type 8` (104 sequences) — different sequence draws from the same log pool, so real Δ is approximate; a matched real clean/attacked pair is a follow-up.
 - DeepSeek rows: clean floors from `clean_syn_none` / `real_clean_mixed_s13`; attacked from `items.jsonl` / `real8_none`; TAME from `guard_syn_final` / `guard_real8`.
 - Qwen rows: `qwen_clean_syn_none` / `qwen_real_clean_mixed_s13` (clean), `qwen_syn` / `qwen_real8_none` (attacked), `qwen_guard_syn` / `qwen_guard_real8` (TAME).
+- Qwen3 rows: `qwen3_clean_syn_none` / `qwen3_real_clean_mixed_s13` (clean), `qwen3_syn` / `qwen3_real8_none` (attacked), `qwen3_guard_syn` / `qwen3_guard_real8` (TAME); same caveat as Qwen2.5 on real Δ (clean n-per-type 4 vs attacked n-per-type 8).
 
 Reading:
 
 - **On capable detectors (DeepSeek family), TAME recovery ≈ Δ**: the defense removes essentially the entire contamination-attributable error (35.4% ≈ 34.7% on syn S1, 31.2% ≈ 28.5% on syn S3), i.e. it does exactly the job it is designed for.
 - **On a weak detector (Qwen2.5-7B), Δ ≤ 0**: the model's own miss floor is ~95–100% (it almost never emits `malicious`), so the attack does not push errors above the floor and there is no contamination-attributable error for TAME to remove. The remaining DASR is detection failure, not state contamination.
+- **On an intermediate local detector (Qwen3-14B), Δ > 0 reappears where the model alarms**: real clean floors fall to ~67–69%, real `S1` shows +15.1% attributable error and TAME recovers +10.6% of it (p=0.043); on real `S3` TAME recovery (+19.2%) even exceeds the approximate Δ (−7.7%), i.e. the guard also removes instruction-residue amplification beyond the clean-floor-normalized error. On synthetic, Qwen3 still sits near its own floor (Δ ≤ 0), so TAME is a no-op there — the boundary is per-slice, not per-model-family.
 - **Boundary condition (detector ceiling).** TAME's benefit is conditional on the model's baseline detection capability: it removes contamination-attributable error when such error exists (stronger detectors), and is a no-op on weak detectors whose errors are not contamination-driven. This is a characterization of *when* memory defense applies, not a failure of the defense: the guard audit shows it still blocks/downgrades instruction-residue writes (accepted 3.2–3.3, downgraded 0.73–0.77 per sequence) even when DASR is unchanged.
 - The one significant Qwen gain (real S1, p=0.004, and clean utility +0.135 ACC_w4) shows the defense is not harmful on weak detectors and can still help where contamination exists.
 
-Full Qwen reproduction details: `results/STAGE5_QWEN_REPORT.md`, `results/QWEN_FULL_REPRO_SUMMARY.md`, `experiments/qwen_frozen_benchmark.sh`.
+Full Qwen reproduction details: `results/STAGE5_QWEN_REPORT.md`, `results/QWEN_FULL_REPRO_SUMMARY.md`, `experiments/qwen_frozen_benchmark.sh`; Qwen3-14B: `results/STAGE5_QWEN3_REPORT.md`, `results/qwen3_*`, `experiments/qwen3_frozen_benchmark.sh`.
 
 ### 9.1 FP/FN mechanism split: why similar raw DASR ≠ similar vulnerability
 
@@ -140,9 +151,14 @@ GPT-5.4 and Qwen2.5-7B land in the same raw-DASR range on real data (77–84%), 
 | Qwen2.5-7B | synthetic | S3 | 100.0% | 0.0% | 0.0% | 100.0% | under-triggering |
 | Qwen2.5-7B | real | S1 | 97.4% | 42.3% | 0.0% | 97.1% | under-triggering |
 | Qwen2.5-7B | real | S3 | 97.4% | 0.0% | 0.0% | 98.1% | under-triggering |
+| Qwen3-14B | synthetic | S1 | 94.4% | 0.0% | 18.8% | 95.8% | under-triggering (FN-driven), hedges with `suspicious` |
+| Qwen3-14B | synthetic | S3 | 91.7% | 0.0% | 22.9% | 93.8% | under-triggering (FN-driven) |
+| Qwen3-14B | real | S1 | 85.9% | 69.2% | 3.8% | 89.4% | mixed (FN-driven + FP component) |
+| Qwen3-14B | real | S3 | 82.1% | 0.0% | 0.0% | 86.5% | under-triggering (FN-driven) |
 
 Reading:
 
 - **GPT-5.4's high DASR is contamination-driven over-triggering**: it genuinely flags malicious activity (low-to-moderate MTR), which is exactly what FP-direction injections exploit (FP DASR 100%, BMR 92–100%). This is why TAME works on it (real S3 DASR 82.7%→61.5%, BMR 33.3%→13.5%): removing injected instruction residue reduces the false alarms the attack manufactures.
 - **Qwen's high DASR is detection-ceiling under-triggering**: it almost never emits `malicious` even on clean windows (MTR 97–100%, BMR 0%), so FN-direction injections "succeed" trivially (FN DASR 97–100%) while FP injections fail (FP DASR 0–42%). There is no contamination-attributable error for TAME to remove.
+- **Qwen3-14B is an intermediate "hedging" detector**: still under-triggering overall (MTR 86–96%, FN DASR 82–94%) and rarely committing to `malicious` (strict FP BMR 0–23% — it mostly answers `suspicious`), but it does alarm enough on real `S1` to carry a genuine FP-direction failure (FP DASR 69.2%) — precisely the slice where TAME's real `S1` gain (+10.6%, p=0.043) appears. The §9 boundary therefore holds per-slice rather than per-model: TAME recovers where the model can be pushed to over-alarm, and is a no-op where it cannot alarm at all (synthetic, real `S3`).
 - Together with §9, this pins down the boundary condition: **defense value peaks on models that alarm but can be misled (contamination-attributable error > 0); weak non-alarming detectors and extremely robust detectors both benefit little**. Raw DASR alone conflates the two opposite failure modes — direction-split reporting and Δ decomposition are both needed.

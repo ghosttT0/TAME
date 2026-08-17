@@ -28,6 +28,12 @@ bash experiments/frozen_benchmark.sh
 
 # 3) 本地开源模型复现（Qwen2.5-7B-Instruct，vLLM，thinking 关）
 bash experiments/qwen_frozen_benchmark.sh
+
+# 3b) Qwen3-14B 复现（/root/autodl-tmp/Qwen3-14B，vLLM + FP8，thinking 关）
+#     先启动服务：vllm serve /root/autodl-tmp/Qwen3-14B --host 0.0.0.0 --port 8000 \
+#       --served-model-name Qwen3-14B --max-model-len 16384 --gpu-memory-utilization 0.92 \
+#       --quantization fp8 --chat-template experiments/qwen3_no_thinking.jinja
+bash experiments/qwen3_frozen_benchmark.sh
 ```
 
 LLM 接入复用 `loginject/llm.py` 的 OpenAI 兼容客户端，通过环境变量切换端点：
@@ -40,6 +46,7 @@ LLM 接入复用 `loginject/llm.py` 的 OpenAI 兼容客户端，通过环境变
 | `results/FINAL_REPORT.md` | 主表 + 附加模型表（6 家族）+ §9 Δ 分解 + §9.1 FP/FN 机制拆分 |
 | `results/STAGE5_REPORT.md` | DeepSeek 主族 TAME 报告 |
 | `results/STAGE5_QWEN_REPORT.md` | Qwen2.5-7B TAME 复现报告 |
+| `results/STAGE5_QWEN3_REPORT.md` | Qwen3-14B TAME 复现报告（vLLM + FP8，thinking 关，`results/qwen3_*`） |
 | `results/QWEN_FULL_REPRO_SUMMARY.md` | 本地 Qwen 全量复现工作总结 |
 | `results/PAPER_RELATED_WORK_DRAFT.md` | 论文定位段落 + related work 草稿 |
 
